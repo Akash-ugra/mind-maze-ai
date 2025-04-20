@@ -1,0 +1,48 @@
+# Explicitly declare text files you want to always be normalized and converted
+# to native line endings on checkout.
+* text=auto
+
+# Java files
+*.java text eol=lf
+*.class binary
+
+# Gradle files
+*.gradle text eol=lf
+*.gradle.kts text eol=lf
+
+# Spring config files
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.properties text eol=lf
+
+# Documentation
+*.md text eol=lf diff=markdown
+*.txt text eol=lf
+
+# Shell scripts - always use LF
+*.sh text eol=lf
+*.bash text eol=lf
+mvnw text eol=lf
+
+# Windows scripts - always CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+mvnw.cmd text eol=crlf
+
+# Config files
+*.json text eol=lf
+*.sql text eol=lf
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+# Binary files
+*.jar binary
+*.war binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.png binary
+*.jpg binary
+*.gif binary

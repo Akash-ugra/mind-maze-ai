@@ -1,0 +1,35 @@
+# Docker Compose configuration for Mind Maze AI development environment
+# Defines and configures required services:
+# - PostgreSQL database for data persistence
+# - Ollama server for AI model hosting
+#
+# Usage:
+# - Development: docker-compose up -d
+# - Shutdown: docker-compose down
+# - Cleanup: docker-compose down -v
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: mind_maze
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: MINDMAZE
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-server
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    command: ["ollama", "serve", "--model", "deepseek-r1:7b"]
+
+volumes:
+  postgres_data:
+  ollama_data:
