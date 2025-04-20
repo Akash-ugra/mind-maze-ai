@@ -1,5 +1,6 @@
 package com.lpu.mind_maze_ai.controller;
 
+import com.lpu.mind_maze_ai.exception.QuestionAlreadyAskedException;
 import com.lpu.mind_maze_ai.service.QuizProgressService;
 import com.lpu.mind_maze_ai.web.response.dto.CorrectResponseDTO;
 import com.lpu.mind_maze_ai.web.response.dto.QuestionDTO;

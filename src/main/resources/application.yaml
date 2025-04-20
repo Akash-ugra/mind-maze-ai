@@ -19,3 +19,46 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: metrics,info,prometheus
+  endpoint:
+    metrics:
+      access: READ_ONLY
+    prometheus:
+      access: READ_ONLY
+    info:
+      access: READ_ONLY
+  metrics:
+    enable:
+      all: true
+    distribution:
+      percentiles-histogram:
+        all: true
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    os:
+      enabled: true
+    git:
+      enabled: true
+    build:
+      enabled: true
+
+info:
+  application:
+    name: ${spring.application.name}
+    description: Mind Maze AI Application
+    version: 1.0.0
+  contact:
+    name: Akash Thakur
+    email: dev@mindmaze.com
+
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-should-be-very-long-and-secure}
+  expiration: ${JWT_EXPIRATION:86400000}

@@ -1,6 +1,7 @@
 package com.lpu.mind_maze_ai.controller;
 
 import com.lpu.mind_maze_ai.entity.CustomUserDetails;
+import com.lpu.mind_maze_ai.exception.ResourceAlreadyExistsException;
 import com.lpu.mind_maze_ai.service.UserService;
 import com.lpu.mind_maze_ai.util.JwtUtil;
 import com.lpu.mind_maze_ai.web.request.dto.CreateUserDTO;
