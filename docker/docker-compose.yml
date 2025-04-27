@@ -1,6 +1,6 @@
 # Docker Compose configuration for Mind Maze AI development environment
 # Defines and configures required services:
-# - PostgreSQL database for data persistence
+# - Postgres SQL database for data persistence
 # - Ollama server for AI model hosting
 #
 # Usage:
