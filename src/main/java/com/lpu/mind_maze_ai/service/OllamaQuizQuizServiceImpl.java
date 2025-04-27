@@ -14,6 +14,8 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -31,6 +33,7 @@ import java.util.List;
  */
 @Service
 public class OllamaQuizQuizServiceImpl implements OllamaQuizService {
+    private static final Logger logger = LoggerFactory.getLogger(OllamaQuizQuizServiceImpl.class);
     private final OllamaChatModel chatModel;
     private final QuizQuestionRepo quizQuestionRepo;
     private final QuizRepository quizRepository;
@@ -97,21 +100,27 @@ public class OllamaQuizQuizServiceImpl implements OllamaQuizService {
     @Override
     @Async
     public void getQuizQuestions(Quiz quiz) {
+        logger.info("Starting quiz generation for quiz ID: {}", quiz.getId());
         // Create a prompt with the provided quiz details
         String formattedPrompt = promptString
                 .replace("{quizId}", String.valueOf(quiz.getId()))
                 .replace("{quizType}", quiz.getQuizType())
                 .replace("{quizLevel}", quiz.getQuizLevel())
                 .replace("{numberOfQuestions}", quiz.getNumberOfQuestions().toString());
+
         Prompt prompt = new Prompt(formattedPrompt);
         quiz.setCreationStatus(CreationStatus.IN_PROGRESS.name());
         quizRepository.saveAndFlush(quiz);
+
         try {
+            logger.debug("Calling AI model with prompt for quiz ID: {}", quiz.getId());
             ChatResponse chatResponse = chatModel.call(prompt);
-            // Parse the response and extract quiz questions
             String text = chatResponse.getResult().getOutput().getText();
+            logger.debug("Received AI response for quiz ID: {}", quiz.getId());
             processLLMMessage(text, quiz);
+            logger.info("Successfully generated quiz questions for quiz ID: {}", quiz.getId());
         } catch (Exception e) {
+            logger.error("Failed to generate quiz questions for quiz ID: {}", quiz.getId(), e);
             quiz.setCreationStatus(CreationStatus.FAILURE.name());
             quizRepository.saveAndFlush(quiz);
             throw new QuizCreationException(e.getMessage());
@@ -128,6 +137,7 @@ public class OllamaQuizQuizServiceImpl implements OllamaQuizService {
      * @throws QuizCreationException if the required number of questions is not generated
      */
     private void processLLMMessage(String message, Quiz quiz) throws JsonProcessingException {
+        logger.debug("Processing AI response for quiz ID: {}", quiz.getId());
         // Remove the <think> section if it exists
         if (message.contains("<think>") && message.contains("</think>")) {
             message = message.replaceAll("<think>.*?</think>", "").trim();

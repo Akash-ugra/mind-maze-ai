@@ -16,6 +16,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * REST Controller for handling authentication operations.
@@ -25,7 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
-
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final UserService userService;
@@ -45,16 +47,22 @@ public class AuthController {
      */
     @PostMapping("/login")
     public Map<String, String> login(@Valid @RequestBody LoginDTO loginDTO) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginDTO.getUsername(), loginDTO.getPassword()));
+        logger.info("Login attempt for user: {}", loginDTO.getUsername());
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginDTO.getUsername(), loginDTO.getPassword()));
 
-        // Assuming the principal contains user details
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        Long userId = userDetails.getId(); // Replace with your method to get the user ID
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            String token = jwtUtil.generateToken(authentication.getName(), userDetails.getId(),
+                userDetails.getName(), userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority).toList());
 
-        String token = jwtUtil.generateToken(authentication.getName(), userId, userDetails.getName(),
-                userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList());
-        return Map.of("token", token);
+            logger.info("Successful login for user: {}", loginDTO.getUsername());
+            return Map.of("token", token);
+        } catch (Exception e) {
+            logger.error("Failed login attempt for user: {}", loginDTO.getUsername(), e);
+            throw e;
+        }
     }
 
     /**
@@ -66,8 +74,16 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<UserDTO> registerUser(@Valid @RequestBody CreateUserDTO createUserDTO) {
-        UserDTO userDTO = userService.registerUser(createUserDTO.getUsername(), createUserDTO.getPassword(),
-                createUserDTO.getName(), createUserDTO.getEmail(), "ROLE_USER");
-        return ResponseEntity.ok(userDTO);
+        logger.info("Registration attempt for username: {}", createUserDTO.getUsername());
+        try {
+            UserDTO userDTO = userService.registerUser(createUserDTO.getUsername(),
+                createUserDTO.getPassword(), createUserDTO.getName(),
+                createUserDTO.getEmail(), "ROLE_USER");
+            logger.info("Successfully registered user: {}", createUserDTO.getUsername());
+            return ResponseEntity.ok(userDTO);
+        } catch (Exception e) {
+            logger.error("Failed to register user: {}", createUserDTO.getUsername(), e);
+            throw e;
+        }
     }
 }

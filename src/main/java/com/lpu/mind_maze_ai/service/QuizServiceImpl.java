@@ -8,6 +8,8 @@ import com.lpu.mind_maze_ai.repository.QuizProgressRepository;
 import com.lpu.mind_maze_ai.repository.QuizRepository;
 import com.lpu.mind_maze_ai.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import com.lpu.mind_maze_ai.web.request.dto.CreateQuizDTO;
 
@@ -15,23 +17,25 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Implementation of the QuizService interface that manages quiz operations.
- * This service handles quiz creation, retrieval, and deletion for users.
+ * Service implementation for managing quizzes.
+ * This class provides methods for creating, retrieving, and deleting quizzes for users.
  */
 @Service
 public class QuizServiceImpl implements QuizService {
+    private static final Logger logger = LoggerFactory.getLogger(QuizServiceImpl.class);
+
     private final QuizRepository quizRepository;
     private final OllamaQuizService ollamaQuizService;
     private final UserRepository userRepository;
     private final QuizProgressRepository quizProgressRepository;
 
     /**
-     * Creates a new QuizServiceImpl with required dependencies.
+     * Constructor for QuizServiceImpl.
      *
-     * @param quizRepository Repository for managing quiz data
-     * @param ollamaQuizService Service for generating quiz questions using AI
-     * @param userRepository Repository for managing user data
-     * @param quizProgressRepository Repository for managing quiz progress
+     * @param quizRepository Repository for managing Quiz entities.
+     * @param ollamaQuizService Service for generating quiz questions.
+     * @param userRepository Repository for managing User entities.
+     * @param quizProgressRepository Repository for managing quiz progress.
      */
     public QuizServiceImpl(QuizRepository quizRepository, OllamaQuizService ollamaQuizService,
                            UserRepository userRepository, QuizProgressRepository quizProgressRepository) {
@@ -42,69 +46,108 @@ public class QuizServiceImpl implements QuizService {
     }
 
     /**
-     * Retrieves all quizzes belonging to a specific user.
+     * Retrieves all quizzes for a specific user.
      *
-     * Implementation Details:
-     * 1. Validates user exists
-     * 2. Fetches all quizzes associated with the user
-     *
-     * @param userId Identifier of the user whose quizzes to retrieve
-     * @return List of quizzes owned by the user
-     * @throws RuntimeException if user not found
+     * @param userId The ID of the user whose quizzes are to be retrieved.
+     * @return A list of quizzes associated with the user.
+     * @throws RuntimeException if the user is not found.
      */
     @Override
     public List<Quiz> getAllQuizzesByUser(Long userId) {
-        // Fetch the user by ID
+        logger.debug("Fetching all quizzes for user with ID: {}", userId);
         CustomUserDetails user = getUser(userId);
-        return quizRepository.findAllByUser(user);
+        List<Quiz> quizzes = quizRepository.findAllByUser(user);
+        logger.info("Retrieved {} quizzes for user with ID: {}", quizzes.size(), userId);
+        return quizzes;
     }
 
+    /**
+     * Retrieves a specific quiz by its ID and the user ID.
+     *
+     * @param quizId The ID of the quiz to retrieve.
+     * @param userId The ID of the user who owns the quiz.
+     * @return The quiz entity if found.
+     * @throws RuntimeException if the quiz or user is not found.
+     */
     @Override
     public Quiz getQuizByIdAndUser(String quizId, Long userId) {
-        // Fetch the user by ID
+        logger.debug("Fetching quiz with ID: {} for user with ID: {}", quizId, userId);
         CustomUserDetails user = getUser(userId);
-        // Convert the quizId string to a UUID
         UUID quizUUID = UUID.fromString(quizId);
-        return quizRepository.findByIdAndUser(quizUUID, user)
-                .orElseThrow(() -> new RuntimeException("Quiz not found with ID: " + quizId));
+        Quiz quiz = quizRepository.findByIdAndUser(quizUUID, user)
+            .orElseThrow(() -> {
+                logger.error("Quiz not found with ID: {} for user with ID: {}", quizId, userId);
+                return new RuntimeException("Quiz not found with ID: " + quizId);
+            });
+        logger.info("Successfully retrieved quiz with ID: {} for user with ID: {}", quizId, userId);
+        return quiz;
     }
 
+    /**
+     * Deletes a specific quiz for a user.
+     *
+     * @param quizId The ID of the quiz to delete.
+     * @param userId The ID of the user who owns the quiz.
+     * @throws RuntimeException if the quiz or user is not found.
+     */
     @Override
     @Transactional
     public void deleteQuizByUser(String quizId, Long userId) {
-        // Fetch the user by ID
+        logger.debug("Deleting quiz with ID: {} for user with ID: {}", quizId, userId);
         CustomUserDetails user = getUser(userId);
-        // Convert the quizId string to a UUID
         UUID quizUUID = UUID.fromString(quizId);
 
-        // Check if the quiz exists for the user
         Quiz quiz = quizRepository.findByIdAndUser(quizUUID, user)
-                .orElseThrow(() -> new RuntimeException("Quiz not found with ID: " + quizId));
+            .orElseThrow(() -> {
+                logger.error("Quiz not found with ID: {} for user with ID: {}", quizId, userId);
+                return new RuntimeException("Quiz not found with ID: " + quizId);
+            });
 
-        // Delete related quiz progress
         quizProgressRepository.deleteByQuiz(quiz);
+        logger.info("Deleted quiz progress for quiz with ID: {}", quizId);
 
-        // Delete the quiz
         quizRepository.delete(quiz);
+        logger.info("Deleted quiz with ID: {} for user with ID: {}", quizId, userId);
     }
 
+    /**
+     * Creates a new quiz for a user.
+     *
+     * @param createQuizDTO The data transfer object containing quiz details.
+     * @param userId The ID of the user for whom the quiz is being created.
+     * @return The created quiz entity.
+     */
     @Override
     public Quiz createQuizForUser(CreateQuizDTO createQuizDTO, Long userId) {
+        logger.debug("Creating quiz for user with ID: {}", userId);
         CustomUserDetails user = getUser(userId);
-        // Convert DTO to entity
+
         Quiz quiz = QuizMapper.toEntity(createQuizDTO);
         quiz.setUser(user);
         quiz.setCreationStatus(CreationStatus.NOT_STARTED.name());
 
-        // Save the quiz to the database and return the saved entity
         Quiz savedQuiz = quizRepository.save(quiz);
+        logger.info("Quiz created with ID: {} for user with ID: {}", savedQuiz.getId(), userId);
+
         ollamaQuizService.getQuizQuestions(savedQuiz);
+        logger.info("Quiz questions generated for quiz with ID: {}", savedQuiz.getId());
+
         return savedQuiz;
     }
 
+    /**
+     * Retrieves a user by their ID.
+     *
+     * @param userId The ID of the user to retrieve.
+     * @return The user entity if found.
+     * @throws RuntimeException if the user is not found.
+     */
     private CustomUserDetails getUser(Long userId) {
-        // Fetch the user by ID
+        logger.debug("Fetching user with ID: {}", userId);
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+            .orElseThrow(() -> {
+                logger.error("User not found with ID: {}", userId);
+                return new RuntimeException("User not found with ID: " + userId);
+            });
     }
 }

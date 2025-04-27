@@ -9,6 +9,8 @@ import com.lpu.mind_maze_ai.repository.UserRepository;
 import com.lpu.mind_maze_ai.web.response.dto.CorrectResponseDTO;
 import com.lpu.mind_maze_ai.web.response.dto.QuestionDTO;
 import com.lpu.mind_maze_ai.web.response.dto.ScoreDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -33,6 +35,7 @@ import java.util.UUID;
  */
 @Service
 public class QuizProgressServiceImpl implements QuizProgressService {
+    private static final Logger logger = LoggerFactory.getLogger(QuizProgressServiceImpl.class);
     private final QuizProgressRepository progressRepository;
     private final QuizQuestionRepo questionRepo;
     private final UserRepository userRepository;
@@ -69,6 +72,7 @@ public class QuizProgressServiceImpl implements QuizProgressService {
      */
     @Override
     public QuestionDTO getRandomQuestion(String quizId, Long userId) {
+        logger.debug("Getting random question for quiz: {}, user: {}", quizId, userId);
         // Fetch all questions tied to the quiz
         List<QuizQuestion> questions = questionRepo.findAllByQuizId(UUID.fromString(quizId));
 
@@ -92,6 +96,7 @@ public class QuizProgressServiceImpl implements QuizProgressService {
                 .findFirst();
 
         if (nextQuestion.isEmpty()) {
+            logger.info("No more questions available for quiz: {}, user: {}", quizId, userId);
             throw new QuestionAlreadyAskedException(String.format("[userId: %s, quizId: %s]No more questions available for this quiz", userId, quizId));
         }
 
@@ -106,6 +111,7 @@ public class QuizProgressServiceImpl implements QuizProgressService {
         questionDTO.setId(question.getId());
         questionDTO.setQuestion(question.getQuestion());
         questionDTO.setOptions(question.getAnsOptions());
+        logger.debug("Retrieved random question for quiz: {}, user: {}", quizId, userId);
         return questionDTO;
     }
 
@@ -129,6 +135,7 @@ public class QuizProgressServiceImpl implements QuizProgressService {
      */
     @Override
     public CorrectResponseDTO saveProgress(String quizId, Long userId, String questionId, String selectedOption) {
+        logger.debug("Saving progress for quiz: {}, user: {}, question: {}", quizId, userId, questionId);
         QuizProgress progress = progressRepository.findByUserIdAndQuizId(userId, UUID.fromString(quizId))
                 .orElseThrow(() -> new RuntimeException("Progress not found for user and quiz."));
 
@@ -146,6 +153,8 @@ public class QuizProgressServiceImpl implements QuizProgressService {
         responseDTO.setIsCorrect(question.getCorrectAnswer().equalsIgnoreCase(selectedOption));
         responseDTO.setCorrectOption(question.getCorrectAnswer());
         responseDTO.setQuestion(question.getQuestion());
+        logger.info("Progress saved for quiz: {}, user: {}, question: {}, correct: {}",
+            quizId, userId, questionId, question.getCorrectAnswer().equalsIgnoreCase(selectedOption));
         return responseDTO;
     }
 
